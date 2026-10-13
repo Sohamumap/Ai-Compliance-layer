@@ -1,0 +1,26 @@
+{
+  "status": "invalid",
+  "chain": {
+    "ok": true,
+    "count": 2,
+    "head": "sha256:ed567da9f3748a4d7c387a1acb0d34ae105665bbc2c5bb86e7e4c577d1524d4c",
+    "error": null,
+    "bad_seq": null,
+    "signed_count": 0,
+    "verified_signatures": false
+  },
+  "mandate_checked": true,
+  "out_of_mandate": [
+    {
+      "seq": 2,
+      "agent_id": "claude-code",
+      "tool": "WebFetch",
+      "reasons": [
+        "prohibited_action",
+        "not_permitted",
+        "self_reported"
+      ]
+    }
+  ],
+  "vault": null
+}

@@ -1,0 +1,19 @@
+{
+  "session_id": "demo-session",
+  "transcript_path": "/__aicl_workdir__/transcript.jsonl",
+  "cwd": "/__aicl_workdir__/shopper-insights",
+  "permission_mode": "default",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "curl -sS https://example.com/pricing",
+    "description": "Fetch competitor pricing page"
+  },
+  "tool_use_id": "tu-06",
+  "tool_response": {
+    "stdout": "<html><h1>Pricing</h1></html>",
+    "stderr": "",
+    "interrupted": false,
+    "is_error": false
+  }
+}

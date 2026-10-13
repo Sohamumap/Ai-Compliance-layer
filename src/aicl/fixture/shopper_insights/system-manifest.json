@@ -1,0 +1,44 @@
+{
+  "system_id": "shopper-insights",
+  "intended_purpose": "retail analytics assistant that summarises anonymised sales data for store managers",
+  "compliance_target": "EU_AI_ACT",
+  "high_risk_presumption": false,
+  "commit_ref": "HEAD",
+  "known_limitations": [],
+  "agent_inventory": {
+    "agents": [
+      {
+        "id": "claude-code",
+        "name": "Claude Code (IDE agent)",
+        "tools": [
+          {"name": "Bash", "kind": "function", "side_effects": true, "requires_approval": true},
+          {"name": "Edit", "kind": "function", "side_effects": true},
+          {"name": "Write", "kind": "function", "side_effects": true},
+          {"name": "Read", "kind": "function", "side_effects": false},
+          {"name": "WebFetch", "kind": "function", "side_effects": false},
+          {"name": "mcp__filesystem__read_file", "kind": "mcp", "side_effects": false}
+        ],
+        "models": [{"provider": "anthropic", "model": "claude-opus-5-5"}],
+        "mandate": {
+          "permitted_actions": ["tool:Bash", "tool:Edit", "tool:Write", "tool:Read", "tool:mcp__filesystem__read_file"],
+          "prohibited_actions": ["tool:WebFetch"],
+          "limits": {
+            "deny_destructive_shell": true,
+            "deny_secrets_in_input": true,
+            "deny_secret_file_read": true,
+            "deny_undeclared_tools": true,
+            "ask_obfuscated_shell": true,
+            "ask_network_egress": true,
+            "mcp_allowed_servers": "filesystem",
+            "allowed_hosts": "",
+            "protected_paths": ".github/workflows"
+          },
+          "granted_by": "soham",
+          "granted_at": "2026-10-13"
+        },
+        "guardrails": [{"kind": "runtime_policy_hook", "evidence_ref": "docs/human_oversight.md"}],
+        "logging": {"decision_log_ref": "agent-log.jsonl", "captures_intent": true}
+      }
+    ]
+  }
+}

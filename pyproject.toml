@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aicl"
+version = "0.1.0"
+description = "AI Compliance Layer: runtime guardrail hook and agentic CI wrapper around the Opencomplai CLI"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+llm = ["anthropic>=1.13,<2"]
+# opencomplai is a tool dependency reached only via subprocess; it is never imported.
+dev = ["pytest>=8", "opencomplai==0.12.0"]
+
+[project.scripts]
+aicl = "aicl.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["aicl"]
+namespaces = false
+
+[tool.setuptools.package-data]
+aicl = ["fixture/**/*", "fixture/shopper_insights/.gitignore"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["external: needs the opencomplai binary (auto-skipped when absent)"]

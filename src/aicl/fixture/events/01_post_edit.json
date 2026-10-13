@@ -1,0 +1,19 @@
+{
+  "session_id": "demo-session",
+  "transcript_path": "/__aicl_workdir__/transcript.jsonl",
+  "cwd": "/__aicl_workdir__/shopper-insights",
+  "permission_mode": "default",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Edit",
+  "tool_input": {
+    "file_path": "src/insights.py",
+    "old_string": "nlargest(n)",
+    "new_string": "nlargest(n).round(2)"
+  },
+  "tool_use_id": "tu-01",
+  "tool_response": {
+    "filePath": "/__aicl_workdir__/shopper-insights/src/insights.py",
+    "oldString": "nlargest(n)",
+    "newString": "nlargest(n).round(2)"
+  }
+}

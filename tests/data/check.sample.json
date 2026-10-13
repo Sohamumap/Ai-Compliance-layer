@@ -1,0 +1,308 @@
+{
+  "install_id": "604c8502-50f0-4912-aa40-3080217b8a14",
+  "system_id": "shopper-insights",
+  "commit_ref": "unresolved",
+  "result": "control_fail",
+  "failed_controls": [
+    "CODE_CORROBORATION_GAP"
+  ],
+  "evidence_hashes": [
+    "sha256:a122c525f68cb28e103b6befdb38e0889d9b9ed6e146895a368ffe115fabf0e3",
+    "sha256:5939e0820f2debab1a26d40818850a2c89237f5605b85ef446bfab18972dd37c",
+    "sha256:9ad5ec2d02ce81ba07d0f2f6c67a93170c33f5b088306ca3df7932d4a5ab1826",
+    "sha256:d14ad5449fa753c09228867d4fa4e50c51cecdf77ffc8488a0cab92cca586714",
+    "sha256:03dc17857bfc02e2e22deceddb083bb66ea167beed34c081c24cb09672ca344d",
+    "sha256:dd631aeb2637facc2af3060f6279c230208c6acc94a359338d181109c2d305fd",
+    "sha256:798e90fc37157254383fd516925c17a084404f6fd5531fec1d7cd684b410969d",
+    "sha256:c6608b9f1f35fd4568a67be466c455af316b9e259a1a893f4c967995c605fce9",
+    "sha256:bbfa8fdc70ebb1128f03fc9956a168a9b7c130eb7ba646b6bd9884e95df4b3fb",
+    "sha256:6fba685679b316a5095adf51b2a9adb5d6daa63d8a6384595da67737f4aed003",
+    "sha256:6296df0b804ee2e68dba9bfe8e0be342547f04f8470e5fb1abe8e79d7c99a2ad"
+  ],
+  "rationale_hash": "sha256:990fa9a8524f9a4f82e7d440c2b2298138e5f5026311571b08c4a1cfb7b27b6a",
+  "duration_ms": 0,
+  "pending_verifications_count": 0,
+  "signature": null,
+  "eval_summary": null,
+  "scan_summary": {
+    "scan_id": "scan_b22f244a7a4a942a",
+    "scanner_version": "1.0.0",
+    "severity": "major",
+    "detected_categories": [
+      "biometric"
+    ],
+    "discrepancies": [
+      "biometric"
+    ],
+    "report_hash": "sha256:a122c525f68cb28e103b6befdb38e0889d9b9ed6e146895a368ffe115fabf0e3",
+    "evidence_hashes": [
+      "sha256:5939e0820f2debab1a26d40818850a2c89237f5605b85ef446bfab18972dd37c",
+      "sha256:9ad5ec2d02ce81ba07d0f2f6c67a93170c33f5b088306ca3df7932d4a5ab1826",
+      "sha256:d14ad5449fa753c09228867d4fa4e50c51cecdf77ffc8488a0cab92cca586714",
+      "sha256:03dc17857bfc02e2e22deceddb083bb66ea167beed34c081c24cb09672ca344d",
+      "sha256:dd631aeb2637facc2af3060f6279c230208c6acc94a359338d181109c2d305fd",
+      "sha256:798e90fc37157254383fd516925c17a084404f6fd5531fec1d7cd684b410969d",
+      "sha256:c6608b9f1f35fd4568a67be466c455af316b9e259a1a893f4c967995c605fce9"
+    ],
+    "detector_errors": []
+  },
+  "gap_report": {
+    "system_id": "shopper-insights",
+    "commit_ref": "unresolved",
+    "generated_at": "2026-10-13T20:56:10.074741+00:00",
+    "articles": [
+      {
+        "article": "Art. 4",
+        "status": "unverified",
+        "source": "obligation",
+        "evidence_ref": "ai_literacy",
+        "rationale": "Obligation 'AI literacy' applies; no automated verification run.",
+        "confidence": null,
+        "confidence_label": "not_assessed",
+        "disclaimer_ref": "DISCLAIMER_V1"
+      },
+      {
+        "article": "Art. 5",
+        "status": "unverified",
+        "source": "obligation",
+        "evidence_ref": "prohibited",
+        "rationale": "Obligation 'Prohibited AI practices' applies; no automated verification run.",
+        "confidence": null,
+        "confidence_label": "not_assessed",
+        "disclaimer_ref": "DISCLAIMER_V1"
+      },
+      {
+        "article": "Art. 6",
+        "status": "missing",
+        "source": "scan",
+        "evidence_ref": "find_sha256:330206d6ad0638537b35604109143d0480eee9c76c655b63edd3a4d6c1faf38f",
+        "rationale": "Scan detected 'biometric' evidence mapping to biometric, not reflected in the declared manifest purpose (1 finding(s)).",
+        "confidence": 0.6,
+        "confidence_label": "heuristic_estimate",
+        "disclaimer_ref": "DISCLAIMER_V1"
+      },
+      {
+        "article": "Art. 9",
+        "status": "missing",
+        "source": "artifact",
+        "evidence_ref": "risk_register",
+        "rationale": "No conventional documentation/code probe matched for 'risk_register'. Add the expected file or construct, then re-run gaps.",
+        "confidence": 0.4,
+        "confidence_label": "heuristic_estimate",
+        "disclaimer_ref": "DISCLAIMER_V1"
+      },
+      {
+        "article": "Art. 10",
+        "status": "unverified",
+        "source": "evaluator",
+        "evidence_ref": "none",
+        "rationale": "No source data supplied for this article in this run.",
+        "confidence": null,
+        "confidence_label": "not_assessed",
+        "disclaimer_ref": "DISCLAIMER_V1"
+      },
+      {
+        "article": "Art. 11",
+        "status": "missing",
+        "source": "artifact",
+        "evidence_ref": "technical_documentation_dossier",
+        "rationale": "No conventional documentation/code probe matched for 'technical_documentation_dossier'. Add the expected file or construct, then re-run gaps.",
+        "confidence": 0.4,
+        "confidence_label": "heuristic_estimate",
+        "disclaimer_ref": "DISCLAIMER_V1"
+      },
+      {
+        "article": "Art. 12",
+        "status": "partial",
+        "source": "artifact",
+        "evidence_ref": "agent-log.jsonl",
+        "rationale": "Found candidate artifact/signal for 'event_log_evidence' (1 path(s), 0 code hint(s)). Heuristic only \u2014 not a full obligation assessment.",
+        "confidence": 0.55,
+        "confidence_label": "heuristic_estimate",
+        "disclaimer_ref": "DISCLAIMER_V1"
+      },
+      {
+        "article": "Art. 13",
+        "status": "missing",
+        "source": "artifact",
+        "evidence_ref": "deployer_instructions",
+        "rationale": "No conventional documentation/code probe matched for 'deployer_instructions'. Add the expected file or construct, then re-run gaps.",
+        "confidence": 0.4,
+        "confidence_label": "heuristic_estimate",
+        "disclaimer_ref": "DISCLAIMER_V1"
+      },
+      {
+        "article": "Art. 14",
+        "status": "partial",
+        "source": "artifact",
+        "evidence_ref": "docs/human_oversight.md",
+        "rationale": "Found candidate artifact/signal for 'human_oversight_construct' (1 path(s), 0 code hint(s)). Heuristic only \u2014 not a full obligation assessment.",
+        "confidence": 0.55,
+        "confidence_label": "heuristic_estimate",
+        "disclaimer_ref": "DISCLAIMER_V1"
+      },
+      {
+        "article": "Art. 15",
+        "status": "partial",
+        "source": "manifest",
+        "evidence_ref": "manifest:agent_declarations",
+        "rationale": "Agent inventory declared in the manifest: 1 agent(s), 6 tool(s), 1 requiring approval. Detected but not declared: none. Declared but not detected: agent framework, MCP server. A declaration only; not verified against the system.",
+        "confidence": null,
+        "confidence_label": "not_assessed",
+        "disclaimer_ref": "DISCLAIMER_V1"
+      },
+      {
+        "article": "Art. 16",
+        "status": "missing",
+        "source": "artifact",
+        "evidence_ref": "provider_qms_bundle",
+        "rationale": "No conventional documentation/code probe matched for 'provider_qms_bundle'. Add the expected file or construct, then re-run gaps.",
+        "confidence": 0.4,
+        "confidence_label": "heuristic_estimate",
+        "disclaimer_ref": "DISCLAIMER_V1"
+      },
+      {
+        "article": "Art. 17",
+        "status": "missing",
+        "source": "artifact",
+        "evidence_ref": "provider_qms",
+        "rationale": "No conventional documentation/code probe matched for 'provider_qms'. Add the expected file or construct, then re-run gaps.",
+        "confidence": 0.4,
+        "confidence_label": "heuristic_estimate",
+        "disclaimer_ref": "DISCLAIMER_V1"
+      },
+      {
+        "article": "Art. 24",
+        "status": "missing",
+        "source": "artifact",
+        "evidence_ref": "distributor_conformity",
+        "rationale": "No conventional documentation/code probe matched for 'distributor_conformity'. Add the expected file or construct, then re-run gaps.",
+        "confidence": 0.4,
+        "confidence_label": "heuristic_estimate",
+        "disclaimer_ref": "DISCLAIMER_V1"
+      },
+      {
+        "article": "Art. 25",
+        "status": "met",
+        "source": "rule",
+        "evidence_ref": "EU_AIA_ART25_MODIFICATION_TRAP",
+        "rationale": "No substantial modification declared in assessment answers.",
+        "confidence": 0.9,
+        "confidence_label": "measured",
+        "disclaimer_ref": "DISCLAIMER_V1"
+      },
+      {
+        "article": "Art. 26",
+        "status": "missing",
+        "source": "artifact",
+        "evidence_ref": "deployer_use_records",
+        "rationale": "No conventional documentation/code probe matched for 'deployer_use_records'. Add the expected file or construct, then re-run gaps.",
+        "confidence": 0.4,
+        "confidence_label": "heuristic_estimate",
+        "disclaimer_ref": "DISCLAIMER_V1"
+      },
+      {
+        "article": "Art. 27",
+        "status": "missing",
+        "source": "artifact",
+        "evidence_ref": "provider_fria",
+        "rationale": "No conventional documentation/code probe matched for 'provider_fria'. Add the expected file or construct, then re-run gaps.",
+        "confidence": 0.4,
+        "confidence_label": "heuristic_estimate",
+        "disclaimer_ref": "DISCLAIMER_V1"
+      },
+      {
+        "article": "Art. 43",
+        "status": "missing",
+        "source": "artifact",
+        "evidence_ref": "conformity_assessment_docs",
+        "rationale": "No conventional documentation/code probe matched for 'conformity_assessment_docs'. Add the expected file or construct, then re-run gaps.",
+        "confidence": 0.4,
+        "confidence_label": "heuristic_estimate",
+        "disclaimer_ref": "DISCLAIMER_V1"
+      },
+      {
+        "article": "Art. 49",
+        "status": "missing",
+        "source": "artifact",
+        "evidence_ref": "eu_database_registration_evidence",
+        "rationale": "No conventional documentation/code probe matched for 'eu_database_registration_evidence'. Add the expected file or construct, then re-run gaps.",
+        "confidence": 0.4,
+        "confidence_label": "heuristic_estimate",
+        "disclaimer_ref": "DISCLAIMER_V1"
+      },
+      {
+        "article": "Art. 50",
+        "status": "missing",
+        "source": "artifact",
+        "evidence_ref": "transparency_notice_evidence",
+        "rationale": "No conventional documentation/code probe matched for 'transparency_notice_evidence'. Add the expected file or construct, then re-run gaps.",
+        "confidence": 0.4,
+        "confidence_label": "heuristic_estimate",
+        "disclaimer_ref": "DISCLAIMER_V1"
+      },
+      {
+        "article": "Art. 53",
+        "status": "unverified",
+        "source": "obligation",
+        "evidence_ref": "gpai_provider",
+        "rationale": "Obligation 'General-purpose AI model provider obligations' applies; no automated verification run.",
+        "confidence": null,
+        "confidence_label": "not_assessed",
+        "disclaimer_ref": "DISCLAIMER_V1"
+      },
+      {
+        "article": "Art. 55",
+        "status": "unverified",
+        "source": "obligation",
+        "evidence_ref": "gpai_systemic_risk",
+        "rationale": "Obligation 'GPAI model with systemic risk obligations' applies; no automated verification run.",
+        "confidence": null,
+        "confidence_label": "not_assessed",
+        "disclaimer_ref": "DISCLAIMER_V1"
+      },
+      {
+        "article": "Art. 72",
+        "status": "missing",
+        "source": "artifact",
+        "evidence_ref": "post_market_monitoring_plan",
+        "rationale": "No conventional documentation/code probe matched for 'post_market_monitoring_plan'. Add the expected file or construct, then re-run gaps.",
+        "confidence": 0.4,
+        "confidence_label": "heuristic_estimate",
+        "disclaimer_ref": "DISCLAIMER_V1"
+      },
+      {
+        "article": "Art. 73",
+        "status": "missing",
+        "source": "artifact",
+        "evidence_ref": "serious_incident_log",
+        "rationale": "No conventional documentation/code probe matched for 'serious_incident_log'. Add the expected file or construct, then re-run gaps.",
+        "confidence": 0.4,
+        "confidence_label": "heuristic_estimate",
+        "disclaimer_ref": "DISCLAIMER_V1"
+      }
+    ],
+    "evidence_hashes": [],
+    "principle_summary": null
+  },
+  "nist_rmf_report": null,
+  "controls": null,
+  "rule_set_version": "1.6.0",
+  "cli_version": "0.12.0",
+  "schema_version": "1",
+  "manifest_sha256": "bbfa8fdc70ebb1128f03fc9956a168a9b7c130eb7ba646b6bd9884e95df4b3fb",
+  "timestamp": "2026-10-13T20:56:10.075219Z",
+  "policy_bundle_version": "cli-0.12.0",
+  "summaries": {
+    "agents": {
+      "agents": 1,
+      "with_mandate": 1,
+      "with_guardrails": 1,
+      "undeclared": 0,
+      "log_entries": 1,
+      "out_of_mandate": 0,
+      "chain_valid": true,
+      "log_head_sha256": "6296df0b804ee2e68dba9bfe8e0be342547f04f8470e5fb1abe8e79d7c99a2ad"
+    }
+  }
+}

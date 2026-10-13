@@ -1,0 +1,7 @@
+scan-report.json
+compliance-artifact.json
+.ocignore
+.aicl/
+aicl-report.*
+aicl-remediation.*
+system-manifest.proposed.json

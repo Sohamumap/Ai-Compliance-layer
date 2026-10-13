@@ -1,0 +1,13 @@
+{
+  "session_id": "demo-session",
+  "transcript_path": "/__aicl_workdir__/transcript.jsonl",
+  "cwd": "/__aicl_workdir__/shopper-insights",
+  "permission_mode": "default",
+  "hook_event_name": "PreToolUse",
+  "tool_name": "WebFetch",
+  "tool_input": {
+    "url": "https://example.com/pricing",
+    "prompt": "Summarise the competitor pricing table"
+  },
+  "tool_use_id": "tu-04"
+}
