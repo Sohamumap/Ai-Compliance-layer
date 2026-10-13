@@ -100,6 +100,10 @@ def append(path: Path, payload: Payload, ts: str | None = None, lock_timeout_s: 
                     raise LogError("lock_timeout") from None
                 time.sleep(0.05)
         head, count = tail(path)
+        anchor = read_anchor(path)
+        # the anchor is the truncation defence: if the log no longer ends where the anchor says, keep the old anchor
+        # (so verify --anchor and CI keep failing) instead of silently re-anchoring onto the shortened log
+        mismatch = anchor is not None and anchor.log in ("", path.name) and (anchor.head, anchor.count) != (head, count)
         ts = ts or now_ts()
         entry = Entry(count + 1, ts, payload, head, entry_hash(count + 1, ts, payload, head))
         fd = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o644)
@@ -108,7 +112,11 @@ def append(path: Path, payload: Payload, ts: str | None = None, lock_timeout_s: 
             os.fsync(fd)
         finally:
             os.close(fd)
-        write_anchor(path)
+        if mismatch:
+            write_deadletter(path, f"anchor_mismatch: anchor count={anchor.count} head={anchor.head}, "
+                                   f"log count={count} head={head}; anchor kept", None)
+        else:
+            _write_anchor(path, entry.hash, entry.seq)
         return entry
     finally:
         os.close(lock_fd)   # closing the descriptor releases the flock
@@ -148,6 +156,10 @@ def anchor_path(log: Path) -> Path:
 
 def write_anchor(log: Path) -> Anchor:
     head, count = tail(log)
+    return _write_anchor(log, head, count)
+
+
+def _write_anchor(log: Path, head: str, count: int) -> Anchor:
     a = Anchor(head, count, now_ts(), Path(log).name)
     atomic_write_text(anchor_path(log), json.dumps(asdict(a), indent=2, sort_keys=True) + "\n")
     return a

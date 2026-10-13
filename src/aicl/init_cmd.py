@@ -44,7 +44,8 @@ def hooks_block(python: str = sys.executable) -> dict:
     def group(sub: str) -> list[dict]:
         return [{"matcher": HOOK_MATCHER,
                  "hooks": [{"type": "command", "command": hook_command(sub, python), "timeout": HOOK_TIMEOUT_S}]}]
-    return {"PreToolUse": group("pre"), "PostToolUse": group("post")}
+    # PostToolUse runs only after a successful tool; a failed tool fires PostToolUseFailure instead
+    return {"PreToolUse": group("pre"), "PostToolUse": group("post"), "PostToolUseFailure": group("post")}
 
 
 def merge_settings(existing: Mapping, block: Mapping) -> dict:
@@ -56,7 +57,7 @@ def merge_settings(existing: Mapping, block: Mapping) -> dict:
         cur = hooks.get(event) if isinstance(hooks.get(event), list) else []
         for g in groups:
             sub = g["hooks"][0]["command"].rsplit(" ", 1)[-1]
-            marker = f"-m aicl hook {sub}"
+            marker = f"aicl hook {sub}"   # matches "<python>" -m aicl hook pre and the .venv/bin/aicl hook pre form
             if not any(marker in str(h.get("command", "")) for eg in cur if isinstance(eg, dict)
                        for h in (eg.get("hooks") or []) if isinstance(h, dict)):
                 cur.append(copy.deepcopy(g))
@@ -75,7 +76,7 @@ def render_oversight_doc(m: Manifest, agent: AgentSpec) -> str:
         "# Human oversight and runtime guardrail (aicl)", "",
         f"System `{m.system_id}`. Agent `{agent.id}` ({agent.name}). "
         "Every governed tool call of this agent passes through the aicl Claude Code hook "
-        f"(`PreToolUse` and `PostToolUse`, matcher `{HOOK_MATCHER}`).", "",
+        f"(`PreToolUse`, `PostToolUse` and `PostToolUseFailure`, matcher `{HOOK_MATCHER}`).", "",
         "## Mandate", "",
         f"- Declared tools: {tools or 'none'}",
         f"- Permitted actions: {', '.join(f'`{a}`' for a in md.permitted_actions) if md and md.permitted_actions else 'not restricted'}",
@@ -116,6 +117,10 @@ def render_oversight_doc(m: Manifest, agent: AgentSpec) -> str:
 class InitResult:
     settings_path: Path; settings_changed: bool; oversight_doc: Path; oversight_written: bool
     manifest_changed: bool; manifest_changes: tuple[str, ...]; aicl_dir: Path; agents_check_exit: int | None
+
+
+def _first_line(text: str) -> str:
+    return next((x.strip() for x in (text or "").splitlines() if x.strip()), "no detail")[:200]
 
 
 def _doc_rel(repo: Path, agent: AgentSpec) -> str:
@@ -159,7 +164,9 @@ def run_init(repo: Path, manifest_path: Path, force: bool = False, oc_bin: str |
         ac = oc.agents_check(repo, m.path, bin=oc_bin)
         ac_exit: int | None = ac.exit_code
         ac_line = f"opencomplai agents check: exit {ac.exit_code}" + (
-            "" if ac.exit_code == 0 else f" ({len((ac.json or {}).get('findings') or [])} finding(s))")
+            "" if ac.exit_code == 0 else f" (manifest rejected by opencomplai as invalid: {_first_line(ac.stderr)})"
+            if ac.exit_code == 2
+            else f" ({len((ac.json or {}).get('findings') or [])} finding(s))")
     except (OcNotFound, OcError) as e:
         ac_exit, ac_line = None, f"opencomplai agents check: skipped ({e})"
 
@@ -182,5 +189,7 @@ def cmd_init(args) -> int:
         r = run_init(repo, manifest, force=bool(getattr(args, "force", False)), oc_bin=getattr(args, "opencomplai", None))
     except (ManifestError, AiclError) as e:
         print(f"aicl init: error: {e}", file=sys.stderr)
+        return 2
+    if r.agents_check_exit == 2:   # Opencomplai validation failure = manifest invalid (DESIGN 4.13)
         return 2
     return 3 if r.agents_check_exit not in (None, 0) else 0

@@ -15,7 +15,7 @@ from aicl.core import (PROTECTED_PATHS, SECRET_FILE_GLOBS, AgentSpec, Decision, 
 from aicl.manifest import limit_bool, limit_list, mandate_reasons
 
 __all__ = ["RuleCtx", "RuleFn", "RULES", "evaluate", "derive_intent", "DESTRUCTIVE_SHELL", "DESTRUCTIVE_LABELS",
-           "OBFUSCATION", "EGRESS", "BASH_WRITE_HINTS", "FILE_TOOLS", "WRITE_TOOLS"]
+           "OBFUSCATION", "EGRESS", "BASH_WRITE_HINTS", "FILE_TOOLS", "WRITE_TOOLS", "MAX_SHELL_CHARS"]
 
 FILE_TOOLS = ("Edit", "Write", "Read", "NotebookEdit")
 WRITE_TOOLS = ("Edit", "Write", "NotebookEdit")
@@ -43,10 +43,12 @@ RuleFn = Callable[[RuleCtx], "RuleHit | None"]
 
 # ---- regex tables (module constants; every entry has a positive and a negative test) --------------------
 DESTRUCTIVE_SHELL: tuple[re.Pattern[str], ...] = (
-    re.compile(r"(?i)\brm\s+(?:--?[a-z-]*\s+)*-[a-z]*r[a-z]*\b"),   # any -r/-R flag in any position (-Rf, -v -rf, --force -r)
-    re.compile(r"(?i)\brm\s+(?:--?[a-z-]*\s+)*--recursive\b"),
-    re.compile(r"\bfind\b.*\s-delete\b"), re.compile(r"shutil\.rmtree\("),
-    re.compile(r"\bgit\s+push\b.*\s(--force|-f)\b"), re.compile(r"\bgit\s+reset\s+--hard\b"),
+    # each option token matches the prefix group exactly one way ("-[a-z-]*"), so no exponential backtracking;
+    # flags after operands or quoted flags are caught by _argv_destructive on shell tokens
+    re.compile(r"(?i)\brm\s+(?:-[a-z-]*\s+)*-[a-z]*r[a-z]*\b"),   # any -r/-R flag among leading options (-Rf, -v -rf, --force -r)
+    re.compile(r"(?i)\brm\s+(?:-[a-z-]*\s+)*--recursive\b"),
+    re.compile(r"\bfind\b(?:\s+(?!find\b)\S+)*?\s+-delete\b"), re.compile(r"shutil\.rmtree\("),
+    re.compile(r"\bgit\s+push\b(?:\s+(?!git\b)\S+)*?\s+(--force|-f)\b"), re.compile(r"\bgit\s+reset\s+--hard\b"),
     re.compile(r"\bgit\s+clean\s+-[a-zA-Z]*f"), re.compile(r"\bgit\s+checkout\s+--\s+\."),
     re.compile(r"\bmkfs(\.|\s)"), re.compile(r"\bdd\s+if="), re.compile(r">\s*/dev/(sd|nvme|hd)"),
     re.compile(r"\bchmod\s+-R\s+777\s+/"), re.compile(r":\(\)\s*\{.*:\|:&\s*\};:"),
@@ -61,17 +63,36 @@ DESTRUCTIVE_LABELS: tuple[str, ...] = (
     "shutdown/reboot/halt", "SQL drop/truncate",
     "download piped to a shell", "sudo rm",
 )
+_B64_DECODE = r"\bbase64\s+(?:-\w+\s+)*?(?:-[a-zA-Z]*[dD][a-zA-Z]*|--decode)\b"   # -d, -D (macOS), --decode, bundled
 OBFUSCATION: tuple[re.Pattern[str], ...] = (
-    re.compile(r"\bbase64\s+(-d|--decode)\b.*\|\s*(ba|z)?sh\b"), re.compile(r"\beval\s+[\"'$]"),
+    re.compile(_B64_DECODE + r".*\|\s*(?:sudo\s+)?(?:ba|z|da)?sh\b"), re.compile(r"\beval\s+[\"'$`]"),
     re.compile(r"\$\([^)]*\)\s*\|\s*(ba|z)?sh\b"), re.compile(r"\bpython[0-9.]*\s+-c\s+[\"'].*\b(exec|compile)\("),
     re.compile(r"\\x[0-9a-fA-F]{2}\\x[0-9a-fA-F]{2}"),
+    re.compile(r"(?:\$\(|`)(?:[^)`$]|\$(?!\())*" + _B64_DECODE),                     # decoded payload inside $(...) or `...`
+    re.compile(r"\b(?:ba|z|da)?sh\s+-c\s+[\"']?(?:\$\(|`)"),             # sh -c "$(...)" / sh -c `...`
+    re.compile(r"(?:^|[;&|(]|\n)\s*(?:\$\(|`)"),                          # command substitution in command position
 )
-EGRESS = re.compile(r"\b(curl|wget|nc|ncat|ssh|scp|rsync)\b\s+(?:-\S+\s+)*(?:\S+\s+)*?(?P<url>https?://[^\s'\"]+|(?:[^\s@'\"]+@)?[a-zA-Z0-9.-]+\.[a-z]{2,}(?::\d+)?)")
-BASH_WRITE_HINTS = re.compile(r"(>{1,2}|\brm\b|\bmv\b|\bcp\b|\bsed\s+-i|\btee\b|\btruncate\b|\bchmod\b|\bgit\s+(checkout|restore|rm|clean)\b|\bpython[0-9.]*\s+-c)")
+_EGRESS_PROGS = r"(curl|wget|nc|ncat|ssh|scp|rsync)\b"
+# the argument scan stops at the next egress program, so each start is scanned once (linear, no ReDoS)
+EGRESS = re.compile(r"\b" + _EGRESS_PROGS + r"\s+(?:(?!" + _EGRESS_PROGS + r")\S+\s+)*?(?P<url>https?://[^\s'\"]+|(?:[^\s@'\"]+@)?"
+                    r"(?:[a-zA-Z0-9.-]+\.[a-z]{2,}|\d{1,3}(?:\.\d{1,3}){3})(?::\d+)?)")
+BASH_WRITE_HINTS = re.compile(r"(>{1,2}|\brm\b|\bmv\b|\bcp\b|\bsed\b(?:\s+(?!sed\b)[^\s|;&]+)*?\s+(?:-[a-zA-Z]*i|--in-place)|\bperl\b(?:\s+(?!perl\b)[^\s|;&]+)*?\s+-[a-zA-Z]*i"
+                              r"|\btee\b|\btruncate\b|\bchmod\b|\bunlink\b|\bln\b|\bshred\b|\binstall\b|\bdd\b"
+                              r"|\bgit\s+(checkout|restore|rm|clean)\b|\bpython[0-9.]*\s+-c)")
+MAX_SHELL_CHARS = 16_384   # longer Bash commands are not regex-scanned: a human decides (rule shell_too_long)
 assert len(DESTRUCTIVE_SHELL) == len(DESTRUCTIVE_LABELS)
 
 _REDIRECTS = frozenset({">", ">>", ">|", "&>", "&>>", ">&"})
 _ENV_ASSIGN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
+_SHELL_PUNCT = frozenset("();<>|&")
+_WRAPPERS = frozenset({"sudo", "doas", "env", "command", "builtin", "exec", "nohup", "time", "nice", "xargs", "stdbuf",
+                       "timeout"})
+_WRAPPER_ARG_OPTS = frozenset({"-u", "-g", "-C", "-D", "-h", "-p", "-U", "-n", "-s", "-k"})
+_GIT_ARG_OPTS = frozenset({"-C", "-c", "--git-dir", "--work-tree", "--namespace", "--config-env"})
+_SHORT_FLAGS = re.compile(r"-[a-zA-Z]+")
+_DYNAMIC = frozenset("$`*?[")
+_PATH_KEYS = frozenset({"path", "paths", "file", "files", "file_path", "filepath", "filename", "source", "destination",
+                        "src", "dst", "uri"})
 
 
 # ---- helpers ----------------------------------------------------------------------------------------------------
@@ -83,6 +104,98 @@ def _tokens(command: str) -> list[str]:
         return list(lx)
     except ValueError:
         return command.split()
+
+
+def _simple_commands(command: str) -> list[list[str]]:
+    """argv of each simple command (split on ; & | ( ) and newlines; redirections and their targets dropped)."""
+    out: list[list[str]] = [[]]
+    toks = _tokens(command.replace("\n", " ; "))
+    skip = False
+    for t in toks:
+        if skip:
+            skip = False
+        elif t and set(t) <= _SHELL_PUNCT and set(t) & set(";|&()") and t not in _REDIRECTS:
+            out.append([])
+        elif t in _REDIRECTS or (t and set(t) <= set("<>&|") and "<" in t):
+            skip = True
+        else:
+            out[-1].append(t)
+    return [a for a in out if a]
+
+
+def _program(argv: list[str]) -> tuple[str, list[str]]:
+    """(casefolded basename of the real program, its args), skipping VAR=x prefixes and sudo/env/xargs-style wrappers."""
+    i = 0
+    while i < len(argv):
+        t = argv[i]
+        if _ENV_ASSIGN.match(t):
+            i += 1
+            continue
+        name = os.path.basename(t).casefold()
+        if name not in _WRAPPERS:
+            return name, argv[i + 1:]
+        i += 1
+        while i < len(argv) and argv[i].startswith("-"):
+            i += 2 if argv[i] in _WRAPPER_ARG_OPTS else 1
+        if name == "timeout" and i < len(argv):
+            i += 1   # the duration
+    return "", []
+
+
+def _has_short(args: list[str], letter: str) -> bool:
+    return any(_SHORT_FLAGS.fullmatch(a) and letter in a[1:] for a in args)
+
+
+def _argv_destructive(command: str) -> str | None:
+    """Order- and quoting-independent checks on shell tokens (shlex removes quotes: 'rm' "-rf", r''m)."""
+    for argv in _simple_commands(command):
+        prog, args = _program(argv)
+        if prog == "rm":
+            # conservative: a recursive flag anywhere in rm's argv, even after operands or "--"
+            if _has_short([a.replace("R", "r") for a in args], "r") \
+                    or any(len(a) > 2 and a.startswith("--r") and "--recursive".startswith(a.casefold()) for a in args):
+                return "rm with a recursive flag"
+        elif prog == "git":
+            i = 0
+            while i < len(args) and args[i].startswith("-"):
+                i += 2 if args[i] in _GIT_ARG_OPTS else 1
+            sub, rest = (args[i], args[i + 1:]) if i < len(args) else ("", [])
+            if sub == "clean" and ("--force" in rest or _has_short(rest, "f")):
+                return "git clean -f"
+            if sub == "reset" and "--hard" in rest:
+                return "git reset --hard"
+            if sub == "push" and (_has_short(rest, "f") or any(a.startswith("--force") for a in rest)
+                                  or any(len(a) > 1 and a.startswith("+") for a in rest)):
+                return "git push --force"
+            if sub == "checkout" and "--" in rest and "." in rest[rest.index("--") + 1:]:
+                return "git checkout -- ."
+        elif prog == "dd":
+            if any(a.startswith("if=") or a.startswith("of=/dev/") for a in args):
+                return "dd if="
+        elif prog == "chmod":
+            if (_has_short(args, "R") or "--recursive" in args) and any(a in ("777", "0777") for a in args) \
+                    and any(a.startswith("/") for a in args):
+                return "chmod -R 777 /"
+    return None
+
+
+def _dynamic(raw: str) -> bool:
+    return any(c in _DYNAMIC for c in raw)
+
+
+def _protected_name(ctx: RuleCtx, raw: str) -> str | None:
+    """Name-only match for paths the shell expands or resolves after cd: a protected basename or an .aicl component."""
+    parts = [p.casefold() for p in raw.replace("\\", "/").split("/") if p]
+    if not parts:
+        return None
+    log = Path(ctx.log_path).name.casefold()
+    names = {Path(g).name.casefold() for g in PROTECTED_PATHS if "*" not in g} | {log, log + ".lock"}
+
+    def hit(part: str, name: str) -> bool:
+        return part == name or (_dynamic(part) and fnmatch.fnmatchcase(name, part))
+    if any(hit(p, ".aicl") for p in parts):
+        return ".aicl"
+    return next((n for n in sorted(names) if hit(parts[-1], n)), None)
 
 
 def _resolve(ctx: RuleCtx, raw: str) -> Path | None:
@@ -102,6 +215,9 @@ def _protected(ctx: RuleCtx, raw: str) -> str | None:
     fold = str(full).casefold()
     if fold in (str(log).casefold(), str(log).casefold() + ".lock"):
         return relpath(str(full), ctx.root)
+    evidence = (log.parent / ".aicl").resolve()   # anchor, pending, deadletter live next to the log
+    if full == evidence or evidence in full.parents:
+        return relpath(str(full), ctx.root)
     try:
         rel = full.relative_to(Path(ctx.root).resolve()).as_posix()
     except ValueError:
@@ -110,7 +226,7 @@ def _protected(ctx: RuleCtx, raw: str) -> str | None:
 
 
 def _candidates(tokens: list[str]) -> list[str]:
-    return [x for t in tokens for x in ((t, t.split("=", 1)[1]) if "=" in t else (t,)) if x]
+    return list(dict.fromkeys(x for t in tokens for x in ((t, t.split("=", 1)[1]) if "=" in t else (t,)) if x))
 
 
 def _hit(rule_id: str, decision: Decision, message: str) -> RuleHit:
@@ -132,12 +248,23 @@ def _self_protect(ctx: RuleCtx) -> RuleHit | None:
         rel = _protected(ctx, ctx.file_path)
     elif ctx.tool_name == "Bash" and ctx.command:
         toks = _tokens(ctx.command)
-        targets = [toks[i + 1] for i, t in enumerate(toks[:-1]) if t in _REDIRECTS]
+        targets = [toks[i + 1] for i, t in enumerate(toks[:-1])
+                   if t in _REDIRECTS and toks[i + 1] != "/dev/null" and not toks[i + 1].isdigit()]
         rel = next((r for t in targets if (r := _protected(ctx, t))), None)
-        if rel is None:   # other write verbs: judged on the command without redirections (so `cat x 2>/dev/null` stays a read)
-            rest = [t for i, t in enumerate(toks) if t not in _REDIRECTS and not (i and toks[i - 1] in _REDIRECTS)]
-            if BASH_WRITE_HINTS.search(" ".join(rest)):
-                rel = next((r for t in _candidates(rest) if (r := _protected(ctx, t))), None)
+        # other write verbs: judged on the command without redirections (so `cat x 2>/dev/null` stays a read)
+        rest = [t for i, t in enumerate(toks) if t not in _REDIRECTS and not (i and toks[i - 1] in _REDIRECTS)]
+        hinted = bool(BASH_WRITE_HINTS.search(" ".join(rest)))
+        if rel is None and hinted:
+            rel = next((r for t in _candidates(rest) if (r := _protected(ctx, t))), None)
+        if rel is None:   # paths the shell resolves after cd or expands ($VAR, globs): match by name, a human decides
+            pool = targets + (_candidates(rest) if hinted else [])
+            moved = any(t in ("cd", "pushd") for t in toks)
+            name = next((n for t in pool if (moved or _dynamic(t)) and (n := _protected_name(ctx, t))), None)
+            if name is None and moved and any(_dynamic(t) for t in pool):
+                name = "path (shell-expanded after cd)"
+            if name is not None:
+                return _hit("self_protect", Decision.ASK,
+                            f"possible write to protected {name} via a cd-relative or shell-expanded path")
     if rel is None:
         return None
     return _hit("self_protect", Decision.DENY, f"write to protected path {rel} (guardrail configuration or evidence)")
@@ -180,7 +307,8 @@ def _tool_not_permitted(ctx: RuleCtx) -> RuleHit | None:
 def _destructive_shell(ctx: RuleCtx) -> RuleHit | None:
     if not ctx.command or not limit_bool(ctx.agent.mandate, "deny_destructive_shell", True):
         return None
-    label = next((lb for p, lb in zip(DESTRUCTIVE_SHELL, DESTRUCTIVE_LABELS) if p.search(ctx.command)), None)
+    label = next((lb for p, lb in zip(DESTRUCTIVE_SHELL, DESTRUCTIVE_LABELS) if p.search(ctx.command)), None) \
+        or _argv_destructive(ctx.command)
     return _hit("destructive_shell", Decision.DENY, f"{label}; {_who(ctx, 'deny_destructive_shell')}") if label else None
 
 
@@ -212,6 +340,11 @@ def _secret_file_read(ctx: RuleCtx) -> RuleHit | None:
         cands = [ctx.file_path]
     elif ctx.command:
         cands = _candidates(_tokens(ctx.command))
+    elif mcp_server(ctx.tool_name) is not None:   # e.g. mcp__filesystem__read_file {"path": ".env"}
+        vals = [v for k, v in ctx.tool_input.items()
+                if isinstance(k, str) and (k.casefold() in _PATH_KEYS or k.casefold().endswith("_path"))]
+        cands = [s.removeprefix("file://") for v in vals for s in (v if isinstance(v, (list, tuple)) else [v])
+                 if isinstance(s, str) and s]
     else:
         return None
     for c in cands:
@@ -282,8 +415,16 @@ RULES: tuple[tuple[str, RuleFn], ...] = (   # evaluation order; ALL run; DENY be
 )
 
 
+_SHELL_REGEX_RULES = frozenset({"self_protect", "destructive_shell", "obfuscated_shell", "network_egress"})
+
+
 def evaluate(ctx: RuleCtx) -> Evaluation:
-    hits = tuple(h for _, rule in RULES if (h := rule(ctx)) is not None)
+    if len(ctx.command) > MAX_SHELL_CHARS:   # bound regex cost: the hook must answer well inside Claude Code's timeout
+        hits = tuple(h for rid, rule in RULES if rid not in _SHELL_REGEX_RULES and (h := rule(ctx)) is not None)
+        hits += (_hit("shell_too_long", Decision.ASK, f"Bash command of {len(ctx.command)} chars is longer than "
+                      f"{MAX_SHELL_CHARS}; not scanned, a human decides"),)
+    else:
+        hits = tuple(h for _, rule in RULES if (h := rule(ctx)) is not None)
     for decision in (Decision.DENY, Decision.ASK):
         win = next((h for h in hits if h.decision is decision), None)
         if win is not None:
@@ -305,7 +446,8 @@ def derive_intent(ctx: RuleCtx, ev: Evaluation) -> str:
         body = f"Bash: {os.path.basename(argv[0])[:60] if argv else '?'} ({max(len(argv) - 1, 0)} args)"
         desc = ti.get("description")
         if isinstance(desc, str) and desc.strip():
-            body += f": {redact(' '.join(desc.split()))[:120]}"
+            found = find_secret(desc)   # a description holding a secret is dropped whole, never partially redacted
+            body += f": <redacted:{found}>" if found else f": {redact(' '.join(desc.split()))[:120]}"
     elif tool in FILE_TOOLS:
         fp = ctx.file_path
         full = _resolve(ctx, fp) if fp else None

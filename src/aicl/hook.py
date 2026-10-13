@@ -136,8 +136,10 @@ def run_post(stdin_text: str, *, env: Mapping[str, str], manifest_override: Path
         approved = pop_pending(log, ev.tool_use_id) is not None
         if ev2.decision is Decision.ASK or approved:   # the tool ran after an ask, so the human approved it
             intent = "[approved by human] " + intent
+        failed = ev.event == "PostToolUseFailure" or bool(ev.raw.get("error"))   # failure payloads carry a top-level error
         state["payload"] = payload = make_payload(agent, intent, ev.tool_name, ev.tool_input,
-                                                  post_outcome(ev.tool_response), ev2.outside_mandate)
+                                                  "failure" if failed else post_outcome(ev.tool_response),
+                                                  ev2.outside_mandate)
         check()
         append(log, payload)
         return HookResult(None, "", 0)

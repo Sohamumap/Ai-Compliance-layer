@@ -213,8 +213,11 @@ def render_terminal(r: CiReport, color: bool, out_dir: Path | None = None) -> st
     L += [f"  - {x}" for x in r.verdict_reasons[:5]]
     L.append(f"gate: opencomplai check exit {c.exit_code} {c.result} [{', '.join(c.failed_controls) or 'none'}]; "
              f"scan {c.scan_severity} {', '.join(c.detected_categories) or 'none'}")
-    L.append(f"semantic: code {_code_tier(cls, j).value} vs declared {cls.declared_tier.value}"
-             + (" (declaration gap)" if cls.declaration_gap else ""))
+    if cls.files_scanned == 0:
+        L.append("semantic: not assessed (0 Python files scanned; the classifier reads *.py only)")
+    else:
+        L.append(f"semantic: code {_code_tier(cls, j).value} vs declared {cls.declared_tier.value}"
+                 + f" ({'declaration gap; ' if cls.declaration_gap else ''}{cls.files_scanned} .py file(s) scanned)")
     for f in _findings(cls, j)[:8]:
         L.append(f"  {f.symbol} {_paint(f.tier.value.upper(), f.tier.value, color)} {f.article} "
                  f"({' + '.join(f.evidence)}) {f.confidence:.2f}  {f.file}:{f.line}")

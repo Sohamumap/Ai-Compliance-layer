@@ -11,8 +11,8 @@ from typing import Any, Mapping
 
 import aicl
 from aicl import decisionlog, llm, oc, remediation, report, semantic
-from aicl.core import (CiReport, JudgeUnavailable, LogError, ManifestError, OcError, OcNotFound, PendingRecord,
-                       now_ts)
+from aicl.core import (GENESIS, CiReport, JudgeUnavailable, LogError, ManifestError, OcError, OcNotFound,
+                       PendingRecord, VerifyResult, now_ts)
 from aicl.manifest import load_manifest, log_path, select_agent
 
 __all__ = ["CiOptions", "run_ci", "blocked_seqs", "oc_exit_code", "cmd_ci"]
@@ -57,6 +57,9 @@ def run_ci(o: CiOptions, env: Mapping[str, str] = os.environ) -> tuple[CiReport,
     local = anchor = verify = None
     unresolved: tuple[PendingRecord, ...] = ()
     entries: tuple = ()
+    stored = decisionlog.read_anchor(log)
+    if not log.exists() and stored is not None and stored.count > 0:   # anchored entries, but the log is gone
+        local, anchor = VerifyResult(False, 0, GENESIS, "anchor_count", None), stored
     if log.exists():                                              # 3
         local, anchor = decisionlog.verify_with_anchor(log), decisionlog.read_anchor(log)
         argv = [bin_, "agents", "verify-log", str(log.resolve()), "-m", str(manifest), "-o", "json"]

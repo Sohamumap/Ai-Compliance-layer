@@ -25,6 +25,9 @@ SECRET_SAMPLES = {  # name: (positive, negative)
     "jwt": ("eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abcdefghij", "eyJhbGciOi.short"),
     "bearer": ("Authorization: Bearer abcdefghijklmnop1234", "the bearer token is in vault"),
     "generic_assignment": ("api_key=abcdefghijklmnop1234", "api_key = short"),
+    "github_pat": ("github_pat_11ABCDEFG0123456789_abcdefghijk", "github_pat_short"),
+    "url_credentials": ("postgres://admin:Sup3rS3cret!@prod-db:5432/app", "https://github.com/org/repo"),
+    "named_secret": ("DB_PASSWORD=hunter2-prod-Password-2026", "token_count = len(tokens)"),
 }
 GLOBAL_NEGATIVES = ("sha256:" + "ab" * 32, "123e4567-e89b-12d3-a456-426614174000", "requests==2.0", GENESIS)
 

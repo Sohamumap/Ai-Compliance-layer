@@ -15,7 +15,12 @@ MD_NAME = "aicl-remediation.md"
 PROPOSED_NAME = "system-manifest.proposed.json"
 DEFAULT_DOC = "docs/human_oversight.md"
 HIGH_RISK_ACTION = ("Complete Annex IV fields (training_data_description, human_oversight_measures, performance_metrics, "
-                    "known_limitations) and add docs/risk_register.md before re-running opencomplai check.")
+                    "known_limitations) and add docs/risk_register.md. Declaring the system high-risk makes opencomplai "
+                    "check fail its Art. 6 controls until the high-risk obligations are met or a classification "
+                    "acceptance is recorded.")
+DECLARE_HIGH = ("Declaring the findings makes the manifest match the code; Opencomplai will then treat the system as "
+                "high-risk (Art. 6) until the high-risk obligations are met or a classification acceptance is recorded.")
+DECLARE_OK = "Declaring the findings makes the manifest match the code."
 
 
 def _missing(check: CheckResult, article: str) -> bool:
@@ -58,8 +63,8 @@ def build(manifest: Manifest, check: CheckResult, cls: Classification, judge: Ju
         patch["high_risk_presumption"] = True
     if prohibited:
         existing = list(raw.get("known_limitations") or [])
-        new = [f"{f.symbol} ({f.file}:{f.line}) {f.title} is a prohibited practice under {f.article} "
-               f"and must be removed before release." for f in prohibited]
+        new = [f"{f.symbol} ({f.file}:{f.line}) flagged by aicl heuristic as a possible {f.article} practice "
+               f"({f.title}); requires legal review before release." for f in prohibited]
         patch["known_limitations"] = existing + [n for n in new if n not in existing]
     if missing["Art. 14"] and not manifest.has_human_oversight:
         patch["human_oversight"] = oversight_block()
@@ -82,7 +87,7 @@ def build(manifest: Manifest, check: CheckResult, cls: Classification, judge: Ju
 
     cures = not prohibited
     summary = (f"Manifest patch sets {', '.join(patch) or 'nothing'}; {len(actions)} code action(s). "
-               + ("Declaring the findings can clear the gate." if cures else
+               + ((DECLARE_HIGH if high else DECLARE_OK) if cures else
                   f"{len(prohibited)} prohibited finding(s) cannot be cured by declaration; the code must change."))
     return Remediation(patch=patch, patched_manifest=apply_merge_patch(raw, patch), code_actions=tuple(actions),
                        summary=summary, cures_gate=cures)

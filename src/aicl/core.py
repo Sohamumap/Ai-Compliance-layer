@@ -60,7 +60,8 @@ PENDING_REL = Path(".aicl") / "pending"
 DEADLETTER_REL = Path(".aicl") / "deadletter.jsonl"
 
 # ---- constants: hooks ---------------------------------------------------------
-HOOK_MATCHER = "Bash|Edit|Write|Read|WebFetch|mcp__.*"     # IDENTICAL for PreToolUse and PostToolUse
+HOOK_MATCHER = "^(Bash|Edit|Write|Read|WebFetch|mcp__.*)$"   # IDENTICAL for every event; anchored, since Claude
+                                                           # Code tests regex matchers unanchored (TodoWrite, NotebookEdit)
 HOOK_TIMEOUT_S = 20                                         # settings.json "timeout"
 HOOK_BUDGET_S = 8.0                                         # internal deadline, < HOOK_TIMEOUT_S
 
@@ -72,17 +73,28 @@ PROTECTED_PATHS: tuple[str, ...] = (
 )   # plus the resolved decision log path and "<log>.lock", added at evaluation time
 
 # ---- constants: secrets -----------------------------------------------------------
+_SECRET_NAME = r"(?<![\w-])(?=[\w-]*?(?:api[_-]?key|secret|token|passw(?:or)?d|credential))[\w-]++"   # DB_PASSWORD, aws_secret_access_key
+_SECRET_VAL = r"[^\s'\"`(),;\[\]{}<>]"
 SECRET_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("anthropic_key",  re.compile(r"sk-ant-[A-Za-z0-9_\-]{20,}")),
-    ("openai_key",     re.compile(r"\bsk-(?:proj-)?[A-Za-z0-9]{20,}")),
-    ("aws_access_key", re.compile(r"\bAKIA[0-9A-Z]{16}\b")),
+    ("openai_key",     re.compile(r"\bsk-(?:proj-|svcacct-|admin-)?[A-Za-z0-9_\-]{20,}")),
+    ("aws_access_key", re.compile(r"\b(?:AKIA|ASIA)[0-9A-Z]{16}\b")),
     ("github_token",   re.compile(r"\bgh[pousr]_[A-Za-z0-9]{36,}\b")),
+    ("github_pat",     re.compile(r"\bgithub_pat_[A-Za-z0-9_]{20,}")),
     ("slack_token",    re.compile(r"\bxox[baprs]-[A-Za-z0-9\-]{10,}")),
     ("google_key",     re.compile(r"\bAIza[0-9A-Za-z_\-]{35}\b")),
-    ("private_key",    re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----")),
-    ("jwt",            re.compile(r"\beyJ[A-Za-z0-9_\-]{10,}\.[A-Za-z0-9_\-]{10,}\.[A-Za-z0-9_\-]{5,}")),
-    ("bearer",         re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._\-]{16,}")),
-    ("generic_assignment", re.compile(r"(?i)\b(?:api[_-]?key|secret|token|passw(?:or)?d)\b\s*[:=]\s*['\"]?[A-Za-z0-9_\-/+]{16,}")),
+    # the whole PEM block (to END, or to the end of the text), so redaction never leaves the key body behind
+    ("private_key",    re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?(?:-----END [A-Z ]*PRIVATE KEY-----|\Z)")),
+    ("jwt",            re.compile(r"(?<![A-Za-z0-9_\-])eyJ[A-Za-z0-9_\-]{10,}\.[A-Za-z0-9_\-]{10,}\.[A-Za-z0-9_\-]{5,}")),
+    ("bearer",         re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._\-+/=]{16,}")),
+    ("url_credentials", re.compile(r"://[^/\s:@]+:[^@\s/]+@")),
+    ("generic_assignment", re.compile(r"(?i)\b(?:api[_-]?key|secret|token|passw(?:or)?d)\b\s*[:=]\s*['\"]?[A-Za-z0-9_\-/+=!@#$%^&*~]{16,}")),
+    # a secret-named identifier (any prefix/suffix) assigned a value with a digit, a letter and an upper-case letter or
+    # symbol; constant names (API_KEY_V2) and calls (TokenizerV2(...)) are not values
+    # (lookaheads bounded to 256 chars so scanning stays linear on large Write content)
+    ("named_secret",   re.compile(rf"(?i:{_SECRET_NAME})['\"]?\s*[:=]\s*['\"]?(?={_SECRET_VAL}{{0,256}}?\d)"
+                                  rf"(?={_SECRET_VAL}{{0,256}}?[A-Za-z])(?={_SECRET_VAL}{{0,256}}?[A-Z!@#$%^&*~+=])"
+                                  rf"(?![A-Z0-9_]{{1,256}}(?!{_SECRET_VAL})){_SECRET_VAL}{{8,}}+(?!\()")),
 )
 SECRET_FILE_GLOBS: tuple[str, ...] = (".env", ".env.*", "*.pem", "*.key", "~/.ssh/id_*",
                                       "~/.aws/credentials", "~/.netrc", "~/.config/gh/hosts.yml")
@@ -113,8 +125,7 @@ def read_json(path: Path) -> Any:
     return json.loads(Path(path).read_text("utf-8"))
 
 
-def find_secret(value: Any) -> str | None:
-    """Name of the first SECRET_PATTERNS entry found anywhere in value (dict keys and values, lists, tuples, str)."""
+def _find_secret(value: Any) -> str | None:
     if isinstance(value, str):
         for name, pat in SECRET_PATTERNS:
             if pat.search(value):
@@ -127,10 +138,19 @@ def find_secret(value: Any) -> str | None:
     else:
         return None
     for item in items:
-        hit = find_secret(item)
+        hit = _find_secret(item)
         if hit:
             return hit
     return None
+
+
+def find_secret(value: Any) -> str | None:
+    """Name of the first SECRET_PATTERNS entry found anywhere in value (dict keys and values, lists, tuples, str).
+    Input nested too deep to walk counts as a hit ("nested_too_deep"), so it can never turn a DENY into an error."""
+    try:
+        return _find_secret(value)
+    except RecursionError:
+        return "nested_too_deep"
 
 
 def redact(text: str) -> str:

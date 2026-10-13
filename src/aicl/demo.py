@@ -203,7 +203,7 @@ class Demo:
     def step5(self) -> None:
         rows = self.gaps({a: "partial" for a in ARTS})
         expect("agent-log.jsonl" in rows["Art. 12"].evidence_ref, "Art. 12 evidence is not agent-log.jsonl")
-        print("  runtime decisions became EU AI Act evidence without importing Opencomplai")
+        print("  Art. 12 PARTIAL: opencomplai gaps finds agent-log.jsonl by path; step 4 verify-log checked its chain")
 
     def step6(self) -> None:
         r, code = ci.run_ci(ci.CiOptions(repo=self.repo, manifest=self.manifest, judge=self.judge,
@@ -248,8 +248,10 @@ class Demo:
         pm = load_manifest(copy / MANIFEST_NAME)
         cls = semantic.classify_repo(copy, pm.intended_purpose, pm.high_risk_presumption)
         expect(any(f.tier is Tier.PROHIBITED for f in cls.findings) and not rem.cures_gate, "aicl would pass")
-        print("  Opencomplai Art. 5 rule: still silent on the declared ethnicity inference | "
-              "aicl: still FAIL (fixed in code, not in paperwork)")
+        print("  Opencomplai: classified the declared purpose high-risk (Art. 6, Annex III biometric); its Art. 5 rule "
+              "stayed silent on the declared ethnicity inference")
+        print("  aicl: still FAIL (fixed in code, not in paperwork); it reads ethnicity-from-face as 'race' under "
+              "Art. 5(1)(g), which is an interpretation")
 
 
 STEPS: tuple[tuple[str, Callable[[Demo], None]], ...] = (

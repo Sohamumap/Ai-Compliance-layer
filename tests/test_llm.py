@@ -85,7 +85,7 @@ def test_confirm_adjust_and_call_shape(cls, manifest, keyed):
     assert a1 == cls.findings[1]
     assert j.purpose_addendum == "It infers ethnicity from faces." and j.notes == "ok"
     kw = client.messages.calls[0]
-    assert kw["model"] == DEFAULT_MODEL and kw["max_tokens"] == 2000 and kw["system"] == SYSTEM_PROMPT
+    assert kw["model"] == DEFAULT_MODEL and kw["max_tokens"] == 16000 and kw["system"] == SYSTEM_PROMPT
     assert kw["extra_headers"] == {"anthropic-beta": "server-side-fallback-2026-07-01"}
     assert kw["extra_body"] == {"fallbacks": "default"}
     assert kw["output_format"].__name__ == "JudgeOutput"

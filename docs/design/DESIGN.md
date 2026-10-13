@@ -1190,6 +1190,29 @@ subprocesses (stdlib, ≈ 60 ms each) ≈ 8 s wall clock. Workdir deleted unless
 | `ask` declined by the human leaves no log entry. | Pending record ages into `unresolved` in `aicl log status` and the CI report; `PermissionRequest` hook is the v1 path. |
 | LOC overrun. | Honest ≈ 3,300 estimate with a named cut list (section 3). |
 
+### Accepted v0 limits (adversarial review, 2026-10)
+
+Fixed in the review pass (deviations from sections 4-5 above): shell rules also check shlex tokens (rm/git/dd/chmod
+flags in any order or quoted), regexes are linear and Bash commands over 16 KB go to a human (`shell_too_long`);
+`self_protect` asks when a write targets a protected name through `cd`, `$VAR` or a glob, and also covers the
+`.aicl/` next to a log in a subdirectory; more secret shapes are detected and redacted whole; a description holding
+a secret is dropped from the intent; `append` keeps a mismatched anchor (deadletter `anchor_mismatch`) instead of
+re-anchoring; `aicl ci` fails when the anchor records entries but the log is gone; hooks also register
+`PostToolUseFailure` and the matcher is anchored (`^(...)$`); the judge uses `max_tokens` 16000 and only the unit's
+own lines; classifier word sets were narrowed (no bare union/orientation/disability, verify, engagement, citizens,
+API role "user"; visa/asylum moved to Annex III 7).
+
+Still open, accepted for v0:
+
+- One anchor file is shared by every log in a directory: multi-agent manifests with logs in one directory report an anchor mismatch (the anchor name is pinned by `ANCHOR_REL`, init's `.gitignore` and the report).
+- A torn (partial) last log line stops logging until fixed by hand; `os.write` short writes are not retried. Loud: hook exit 1, deadletter, `verify` reports `bad_json`, CI FAILs. aicl never deletes bytes from the evidence log itself.
+- `input_hash` is an unsalted SHA-256 of the full tool input (Opencomplai's format, pinned by the golden vector), so a low-entropy secret in a command can be guessed offline by someone who can guess the rest of the input.
+- A refusal that carries non-JSON text raises inside `messages.parse`, so the judge error reads `ValidationError` instead of `refusal`; the outcome (deterministic findings unchanged) is the same.
+- `credential_present` checks only `ANTHROPIC_API_KEY` / `ANTHROPIC_AUTH_TOKEN`; an `ant auth login` profile is not detected (`--judge llm` exits 2, `auto` skips).
+- The classifier has no Annex III 1(b)/1(c) categories (for example emotion recognition of customers from faces yields no finding) and reads Python only.
+- Classifier tests now include negatives for the narrowed mappings, but coverage of false positives remains thin; it is a keyword heuristic, not a legal assessment.
+- Shell analysis is token/pattern based, not a shell interpreter: a `$VAR` write target without `cd` is not resolved, and MCP tools are checked for secret-file paths but not for writes to protected paths.
+
 ---
 
 ## 9. Decisions log

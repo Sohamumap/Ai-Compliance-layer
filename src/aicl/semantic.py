@@ -19,18 +19,19 @@ class Category:
 
 # word sets (casefolded tokens)
 BIOMETRIC      = frozenset({"face","facial","faces","face_recognition","face_encodings","face_locations","deepface","insightface","retinaface","facenet","fingerprint","iris","retina","voiceprint","gait","biometric","biometrics"})
-SENSITIVE_ATTR = frozenset({"ethnicity","ethnic","race","racial","religion","religious","belief","beliefs","sexual","orientation","political","union","trade_union","disability"})
-EMOTION        = frozenset({"emotion","emotions","emotional","affect","mood","facial_expression","fer","anger","happiness","sadness","stress","engagement"})
+SENSITIVE_ATTR = frozenset({"ethnicity","ethnic","race","racial","religion","religious","belief","beliefs","sexual","political","trade_union"})   # Art. 5(1)(g) list; bare union/orientation and disability are not it
+EMOTION        = frozenset({"emotion","emotions","emotional","facial_expression","fer","anger","happiness","sadness"})   # no generic HR words (engagement, stress, mood)
 WORKPLACE_EDU  = frozenset({"employee","employees","worker","workers","workplace","staff","student","students","classroom","school","exam","proctor","lecture"})
-SOCIAL_SCORE   = frozenset({"social_score","social_credit","trustworthiness","citizen","citizens","behaviour_score","behavior_score"})
+SOCIAL_SCORE   = frozenset({"social_score","social_credit","trustworthiness","citizen_score","behaviour_score","behavior_score"})
 SCORING        = frozenset({"score","scores","scoring","rank","ranking","rating","grade","predict","classify","screen","eligibility","eligible","approve","reject","decide"})
-IDENTIFY       = frozenset({"identify","identification","match","matching","verify","verification","compare","gallery","watchlist","enroll","enrol","lookup"})
+IDENTIFY       = frozenset({"identify","identification","match","matching","compare","gallery","watchlist","enroll","enrol","lookup"})   # 1:1 verification is excluded by Annex III 1(a)
 EMPLOYMENT     = frozenset({"candidate","candidates","applicant","applicants","resume","resumes","cv","hiring","hire","recruit","recruitment","promotion","termination","interview"})
 CREDIT         = frozenset({"credit","creditworthiness","loan","loans","mortgage","lending","borrower"})
 EDUCATION      = frozenset({"student","students","admission","admissions","exam","exams","grading","proctoring","cheating"})
-ESSENTIAL      = frozenset({"benefit","benefits","welfare","housing","unemployment","pension","asylum","visa","migration"})
+ESSENTIAL      = frozenset({"benefit","benefits","welfare","housing","unemployment","pension"})
+MIGRATION      = frozenset({"asylum","visa","visas","migration","migrant","migrants","residence_permit"})
 LLM_CALL       = frozenset({"messages","completions","chat","generate_content","anthropic","openai","prompt","llm","completion"})
-USER_FACING    = frozenset({"user","users","customer","customers","reply","respond","response","assistant","chatbot","conversation","message","dashboard"})
+USER_FACING    = frozenset({"customer","customers","reply","respond","assistant","chatbot","conversation","dashboard"})   # not the API's own role "user" / messages
 
 CATEGORIES: tuple[Category, ...] = (
   Category("art5_1g_biometric_categorisation", PROHIBITED, "Art. 5(1)(g)", "Biometric categorisation inferring sensitive attributes", BIOMETRIC, SENSITIVE_ATTR, 0.85,
@@ -39,12 +40,13 @@ CATEGORIES: tuple[Category, ...] = (
            "It infers emotions of persons in a workplace or education setting."),
   Category("art5_1c_social_scoring", PROHIBITED, "Art. 5(1)(c)", "Social scoring", SOCIAL_SCORE, SCORING, 0.70, "It scores natural persons based on social behaviour."),
   Category("annex3_1a_biometric_identification", HIGH_RISK, "Annex III 1(a) via Art. 6(2)", "Remote biometric identification", BIOMETRIC, IDENTIFY, 0.70,
-           "It performs biometric identification of natural persons from camera images."),
+           "It performs biometric identification of natural persons."),
   Category("annex3_4_employment", HIGH_RISK, "Annex III 4", "Employment decisions", EMPLOYMENT, SCORING, 0.65, "It scores or ranks candidates or employees."),
   Category("annex3_5b_credit", HIGH_RISK, "Annex III 5(b)", "Creditworthiness", CREDIT, SCORING, 0.65, "It evaluates creditworthiness of natural persons."),
   Category("annex3_3_education", HIGH_RISK, "Annex III 3", "Education access and assessment", EDUCATION, SCORING, 0.60, "It assesses students or admissions."),
   Category("annex3_5a_essential_services", HIGH_RISK, "Annex III 5(a)", "Access to essential public services", ESSENTIAL, SCORING, 0.60, "It evaluates eligibility for public benefits or services."),
-  Category("art50_llm_user_interaction", LIMITED, "Art. 50(1)", "Generative AI output shown to users", LLM_CALL, USER_FACING, 0.50,
+  Category("annex3_7_migration", HIGH_RISK, "Annex III 7", "Migration, asylum and border control", MIGRATION, SCORING, 0.60, "It assesses migration, asylum or visa applications."),
+  Category("art50_llm_user_interaction", LIMITED, "Art. 50(1)", "AI system interacting with users", LLM_CALL, USER_FACING, 0.50,
            "It generates text with a general-purpose language model (LLM) and shows it to users."),
 )
 CATEGORY_BY_ID = {c.id: c for c in CATEGORIES}
@@ -165,7 +167,18 @@ def classify_unit(u: Unit) -> list[Finding]:
     if any(c.tier is PROHIBITED for c, _ in fired):
         fired = [(c, ev) for c, ev in fired if c.tier is PROHIBITED]
     return [Finding(c.id, c.tier, c.article, c.title, u.file, u.line, u.symbol, ev, c.confidence,
-                    f"{c.title}: {', '.join(ev)} co-occur in {u.symbol}") for c, ev in fired]
+                    f"{c.title}{_qualifier(c, ev)}: {', '.join(ev)} co-occur in {u.symbol}") for c, ev in fired]
+
+
+ETHNICITY_NOTE = (" (aicl reads ethnicity inference as 'race' under Art. 5(1)(g); this is an interpretation, "
+                  "Annex III 1(b) lists ethnicity inference as high-risk biometric categorisation)")
+
+
+def _qualifier(c: Category, evidence: tuple[str, ...]) -> str:
+    if c.id == "art5_1g_biometric_categorisation" and {"ethnicity", "ethnic"} & set(evidence) \
+            and not {"race", "racial"} & set(evidence):
+        return ETHNICITY_NOTE
+    return ""
 
 
 def _max_tier(tiers) -> Tier:
