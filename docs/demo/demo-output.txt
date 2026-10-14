@@ -1,0 +1,97 @@
+aicl demo — AI Compliance Layer v0 | offline | opencomplai 0.12.0 via subprocess | workdir <demo-workdir>/shopper-insights
+
+[1/7] Fixture and baseline
+  purpose: retail analytics assistant that summarises anonymised sales data for store managers
+  agent claude-code: permitted tool:Bash, tool:Edit, tool:Write, tool:Read, tool:mcp__filesystem__read_file; prohibited tool:WebFetch; 9 limits knobs; log agent-log.jsonl
+  opencomplai gaps: Art. 12 MISSING (event_log_evidence) | Art. 14 MISSING (human_oversight_construct) | Art. 15 MISSING (manifest:agent_declarations)
+  ok (0.6s)
+
+[2/7] aicl init
+  hooks: <demo-workdir>/shopper-insights/.claude/settings.json (updated)
+  oversight doc: <demo-workdir>/shopper-insights/docs/human_oversight.md (written)
+  manifest: <demo-workdir>/shopper-insights/system-manifest.json (human_oversight: added maintainer role (can_intervene: true))
+  evidence dir: <demo-workdir>/shopper-insights/.aicl (.gitignore keeps only log-anchor.json)
+  decision log: <demo-workdir>/shopper-insights/agent-log.jsonl (created by the first governed tool call)
+  opencomplai agents check: exit 0
+  ungoverned in v0 (outside the hook matcher): Grep, Glob, Task, TodoWrite, WebSearch, NotebookEdit
+  Cursor: enable third-party hook import to reuse .claude/settings.json (not verified in this environment)
+  opencomplai gaps: Art. 12 MISSING (event_log_evidence) | Art. 14 PARTIAL (docs/human_oversight.md) | Art. 15 PARTIAL (manifest:agent_declarations)
+  declaration lift (Art. 14, 15) vs evidence lift (Art. 12, needs the log) is now visible
+  ok (1.2s)
+
+[3/7] Runtime guardrail replay
+  #1 01_pre_edit           Edit                      -> ALLOW
+  #2 01_post_edit          Edit                      -> LOGGED
+       seq=1 success outside_mandate=false  intent: Edit: src/insights.py | aicl:allow:ok
+  #3 02_pre_bash_rm        Bash                      -> DENY [destructive_shell]
+       seq=2 blocked outside_mandate=true  intent: Bash: rm (2 args): Delete cached data | aicl:deny:destructive_shell
+       hook stdout: {"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny", "permissionDecisionReason": "aicl: deny [destructive_shell] rm with a recursive flag; mandate limit deny_destructive_shell=true for agent claude-code"}}
+  #4 03_pre_bash_secret    Bash                      -> DENY [secret_in_input]
+       seq=3 blocked outside_mandate=true  intent: Bash: curl (3 args): <redacted:anthropic_key> | aicl:deny:secret_in_input
+  #5 04_pre_webfetch       WebFetch                  -> DENY [tool_prohibited]
+       seq=4 blocked outside_mandate=true  intent: WebFetch: example.com | aicl:deny:tool_prohibited
+  #6 05_pre_mcp            mcp__github__create_issue -> DENY [mcp_server_not_allowed]
+       seq=5 blocked outside_mandate=true  intent: MCP: github.create_issue | aicl:deny:mcp_server_not_allowed
+  #7 06_pre_bash_curl      Bash                      -> ASK [network_egress]
+  #8 06_post_bash_curl     Bash                      -> LOGGED
+       seq=6 success outside_mandate=false  intent: [approved by human] Bash: curl (2 args): Fetch competitor pricing page | aicl:ask:network_egress
+  #9 07_pre_edit_settings  Edit                      -> DENY [self_protect]
+       seq=7 blocked outside_mandate=true  intent: Edit: .claude/settings.json | aicl:deny:self_protect
+  7 chained entries; blocked seqs [2, 3, 4, 5, 7]
+  ok (0.9s)
+
+[4/7] Evidence
+  opencomplai agents verify-log --expected-head sha256:bbaa62077b41... --expected-count 7: exit 1 (invalid); chain ok, count 7
+    out_of_mandate seq 2 Bash [self_reported]
+    out_of_mandate seq 3 Bash [self_reported]
+    out_of_mandate seq 4 WebFetch [prohibited_action, not_permitted, self_reported]
+    out_of_mandate seq 5 mcp__github__create_issue [tool_not_declared, not_permitted, self_reported]
+    out_of_mandate seq 7 Edit [self_reported]
+  exit 1 is expected: blocked actions are outside mandate; invariant holds
+  aicl log verify --anchor: chain ok: 7 entries
+  aicl log verify --anchor: head=sha256:bbaa62077b4108384aa4325d16a29339543eb70dc380539f0295140f195bddd6 count=7
+  tamper copy, one byte flipped in seq 3 intent: chain broken at seq 3 (aicl: hash; opencomplai: hash, exit 1)
+  tamper copy, last line dropped: verify-log --expected-count 7 -> error: count (exit 1; aicl: anchor_count)
+  ok (2.2s)
+
+[5/7] Regulatory lift
+  opencomplai gaps: Art. 12 PARTIAL (agent-log.jsonl) | Art. 14 PARTIAL (docs/human_oversight.md) | Art. 15 PARTIAL (manifest:agent_declarations)
+  Art. 12 PARTIAL: opencomplai gaps finds agent-log.jsonl by path; step 4 verify-log checked its chain
+  ok (0.6s)
+
+[6/7] aicl ci
+  aicl ci: FAIL (shopper-insights)
+    - opencomplai check exit 1 (control_fail)
+    - prohibited finding: segment_shoppers Art. 5(1)(g)
+    - declaration gap: code prohibited > declared minimal
+  gate: opencomplai check exit 1 control_fail [CODE_CORROBORATION_GAP]; scan major biometric
+  semantic: code prohibited vs declared minimal (declaration gap; 1 .py file(s) scanned)
+    summarise_sales LIMITED Art. 50(1) (anthropic + chat + messages + dashboard + reply) 0.50  src/insights.py:12
+    segment_shoppers PROHIBITED Art. 5(1)(g) (face + face_encodings + face_recognition + ethnicity) 0.85  src/insights.py:20
+  runtime: local chain ok, 7 entries; out_of_mandate ⊆ blocked: yes
+  Judge: skipped (mode=off; deterministic classification only)
+  written in <demo-workdir>/shopper-insights: aicl-report.md, aicl-report.json, aicl-remediation.patch.json, aicl-remediation.md, system-manifest.proposed.json
+  top_products: no finding (deterministic co-occurrence needs two signals)
+  ok (1.3s)
+
+[7/7] Remediation
+  patch intended_purpose += 'It categorises natural persons by inferring ethnicity or other sensitive attributes from biometric face data. It generates text with a general-purpose language model (LLM) and shows it to users.'
+  patch high_risk_presumption: true
+  patch known_limitations: segment_shoppers (src/insights.py:20) flagged by aicl heuristic as a possible Art. 5(1)(g) practice (Biometric categorisation inferring sensitive attributes); requires legal review before release.
+  code action: Remove or disable segment_shoppers (src/insights.py:20): Biometric categorisation inferring sensitive attributes — Art. 5(1)(g).
+  opencomplai check on the patched copy: exit 1; severity none; failed_controls EU_AIA_ART6_HIGH_RISK, EU_AIA_ART6_PROFILING
+  Opencomplai: classified the declared purpose high-risk (Art. 6, Annex III biometric); its Art. 5 rule stayed silent on the declared ethnicity inference
+  aicl: still FAIL (fixed in code, not in paperwork); it reads ethnicity-from-face as 'race' under Art. 5(1)(g), which is an interpretation
+  ok (0.7s)
+
+7/7 steps passed in 7.3s
+artifacts in <demo-workdir>/shopper-insights:
+  agent-log.jsonl
+  .aicl/log-anchor.json
+  docs/human_oversight.md
+  scan-report.json
+  compliance-artifact.json
+  aicl-report.md
+  aicl-report.json
+  aicl-remediation.patch.json
+  system-manifest.proposed.json
